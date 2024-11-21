@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    ports:
+      - "8123:8123"   # HTTP interface
+      - "9000:9000"   # Native interface
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    environment:
+      CLICKHOUSE_DB: solana_indexer
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-indexerpass}
+
+  indexer:
+    build: .
+    depends_on:
+      - clickhouse
+    environment:
+      - STREAMINGFAST_KEY=${STREAMINGFAST_KEY}
+      - DSN=clickhouse://clickhouse:9000/solana_indexer?username=default&password=${CLICKHOUSE_PASSWORD:-indexerpass}
+      - START_SLOT=${START_SLOT:-0}
+    volumes:
+      - ./data:/app/data
+    command: >
+      sh -c "
+        ./token.sh &&
+        substreams-sink-sql setup $${DSN} substreams.yaml &&
+        substreams-sink-sql run $${DSN} substreams.yaml $${START_SLOT} --undo-buffer-size 300
+      "
+
+volumes:
+  clickhouse-data:
