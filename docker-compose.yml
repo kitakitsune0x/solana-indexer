@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   clickhouse:
     image: clickhouse/clickhouse-server:latest
@@ -18,17 +16,19 @@ services:
     build: .
     depends_on:
       - clickhouse
+    env_file:
+      - .env
     environment:
-      - STREAMINGFAST_KEY=${STREAMINGFAST_KEY}
       - DSN=clickhouse://clickhouse:9000/solana_indexer?username=default&password=${CLICKHOUSE_PASSWORD:-indexerpass}
       - START_SLOT=${START_SLOT:-0}
+      - STREAMINGFAST_KEY=${STREAMINGFAST_KEY}
     volumes:
       - ./data:/app/data
     command: >
       sh -c "
         ./token.sh &&
-        substreams-sink-sql setup $${DSN} substreams.yaml &&
-        substreams-sink-sql run $${DSN} substreams.yaml $${START_SLOT} --undo-buffer-size 300
+        substreams-sink-sql setup ${DSN} substreams.yaml &&
+        substreams-sink-sql run ${DSN} substreams.yaml ${START_SLOT} --undo-buffer-size 300
       "
 
 volumes:
